@@ -24,5 +24,9 @@ data/*
 backend/models/*
 !backend/models/.gitkeep
 
+# allow demo artifacts
+!data/cleaned_taxi.csv
+!backend/models/taxi_model.joblib
+
 # Tests
 .pytest_cache/
