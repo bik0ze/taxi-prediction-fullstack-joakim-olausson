@@ -1,0 +1,28 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual env & tooling
+.venv/
+env/
+venv/
+.env
+*.env
+
+# OS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data & models
+data/*
+!data/.gitkeep
+backend/models/*
+!backend/models/.gitkeep
+
+# Tests
+.pytest_cache/
