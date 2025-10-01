@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 import joblib
 import os
@@ -16,7 +17,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Sökvägar till modell och cleaned data
+# Root → /docs
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
+
+# Sökvägar till modell och cleaned data (oberoende av varifrån du startar servern)
 MODEL_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "models", "taxi_model.joblib")
 )
@@ -56,7 +62,7 @@ def predict(req: PredictRequest):
         fare = base_fare + per_km * req.distance_km + per_min * req.duration_min
         return {"predicted_fare": round(float(fare), 2), "used_model": False}
 
-    # Om modell finns, använd den
+    # Använd modellen
     X = [[req.distance_km, req.duration_min, req.passenger_count]]
     try:
         y = _model.predict(X)[0]
