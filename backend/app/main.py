@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import joblib
 import os
 import pandas as pd
@@ -42,9 +42,10 @@ if os.path.exists(MODEL_PATH):
 
 
 class PredictRequest(BaseModel):
-    distance_km: float
-    duration_min: float
-    passenger_count: int = 1
+    distance_km: float = Field(..., ge=0.0, description="Resans längd i km (>= 0)")
+    duration_min: float = Field(..., ge=0.0, description="Restid i minuter (>= 0)")
+    passenger_count: int = Field(1, ge=1, le=8, description="Antal passagerare (1–8)")
+
 
 
 @app.get("/health")
@@ -62,11 +63,12 @@ def predict(req: PredictRequest):
         fare = base_fare + per_km * req.distance_km + per_min * req.duration_min
         return {"predicted_fare": round(float(fare), 2), "used_model": False}
 
-    # Använd modellen
+    # Om modell finns, använd den
     X = [[req.distance_km, req.duration_min, req.passenger_count]]
     try:
-        y = _model.predict(X)[0]
-        return {"predicted_fare": round(float(y), 2), "used_model": True}
+        y = float(_model.predict(X)[0])
+        y = max(y, 0.0)  # golv: tillåt inte negativa priser
+        return {"predicted_fare": round(y, 2), "used_model": True}
     except Exception as e:
         # Fallback om något går fel
         base_fare = 3.5
