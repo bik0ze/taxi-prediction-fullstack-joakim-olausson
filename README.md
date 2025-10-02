@@ -73,23 +73,12 @@ scripts/
 requirements.txt
 ```
 
-## Flöde i projektet (enkelt)
+## Vanliga problem
 
-- **EDA & cleaning**: lägg notebooks i `notebooks/`, exportera ren data till `data/`.
-- **Träna modell**: justera `scripts/train_model.py` (läs din data), kör skriptet och spara modellen till `backend/models/taxi_model.joblib`.
-- **API**: `POST /predict` tar in features och returnerar pris, använder modellen om den finns annars en enkel baseline.
-- **Frontend**: Hämtar från `/predict` och visar priset.
+* **Port upptagen**: stäng tidigare Uvicorn eller kör med `--port 8001`.
+* **Fel på import**: kontrollera att rätt venv är aktiv (`.venv`).
+* **CORS frontend→backend**: backend har CORS påslaget för `http://127.0.0.1`.
 
-Lycka till! 🚕
+---
 
-
-## Steg-för-steg & commit-förslag
-
-1. **chore:** initiera projekt (den här startmallen)
-2. **data:** lägg till `data/taxi_trip_pricing.csv`
-3. **feat(eda):** lägg till `notebooks/EDA.ipynb`
-4. **feat(cleaning):** skript `scripts/make_clean_data.py` som exporterar `data/cleaned_taxi.csv`
-5. **feat(model):** träna modell (`scripts/train_model.py`) → `backend/models/taxi_model.joblib`
-6. **feat(api):** använd tränad modell i `/predict`
-7. **feat(frontend):** koppla UI till API och visa pris
-8. **docs:** uppdatera README med resultat och körinstruktioner
+Kort och gott: installera, starta `uvicorn`, öppna `index.html`, testa i `/docs` – klart! ✅
