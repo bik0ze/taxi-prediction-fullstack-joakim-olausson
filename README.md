@@ -1,62 +1,48 @@
-# Taxi Prediction (fullstack) – startmall
+# Taxi Prediction – enkel fullstack (Python)
 
-Detta är en **enkel startmall** för kursprojektet. Den innehåller en minimal FastAPI-backend,
-en väldigt enkel frontend samt struktur för data, notebooks och ML-skript.
+En minimal helhetsapp som **förutspår taxipris**.  
+Projektet innehåller:
+- **Datahantering** (EDA/cleaning)
+- **ML-modell** (scikit-learn, sparad med `joblib`)
+- **Backend** (FastAPI + endpoints för `/predict`, `/stats`, m.m.)
+- **Frontend** (vanilla HTML/JS som anropar API:et)
 
-## Kör igång (lokalt)
+---
 
-1. Skapa och aktivera virtuell miljö
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate    # Windows: .venv\Scripts\activate
-   ```
-2. Installera paket
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Starta backend (FastAPI)
-   ```bash
-   uvicorn backend.app.main:app --reload
-   ```
-   Backend kör då på `http://127.0.0.1:8000` och docs på `http://127.0.0.1:8000/docs`.
+## 🚀 Snabbstart
 
-4. Öppna `frontend/index.html` i webbläsaren. (I dev räcker det att dubbelklicka på filen.)
+> Kör kommandona i projektets rot (där `backend/`, `frontend/`, `scripts/` finns).
 
-## Struktur
+```bash
+# 1) Skapa och aktivera virtuell miljö
+python -m venv .venv
+# Windows (PowerShell):
+. .venv\Scripts\Activate
+# macOS/Linux:
+# source .venv/bin/activate
 
-```
-backend/
-  app/
-    main.py          # FastAPI-app med /health och /predict
-  models/            # Här sparas tränad modell (.joblib)
-data/                # Rådata eller processad data (git-ignoreras)
-frontend/
-  index.html         # Enkel UI
-  app.js
-notebooks/           # Jupyter notebooks (EDA m.m.)
-scripts/
-  train_model.py     # Exempelskript för att träna och spara modell
-requirements.txt
-.gitignore
-```
+# 2) Installera paket
+pip install -r requirements.txt
 
-## Flöde i projektet (enkelt)
+# 3) Rensa data (skapar data/cleaned_taxi.csv)
+python scripts/make_clean_data.py
 
-- **EDA & cleaning**: lägg notebooks i `notebooks/`, exportera ren data till `data/`.
-- **Träna modell**: justera `scripts/train_model.py` (läs din data), kör skriptet och spara modellen till `backend/models/taxi_model.joblib`.
-- **API**: `POST /predict` tar in features och returnerar pris, använder modellen om den finns annars en enkel baseline.
-- **Frontend**: Hämtar från `/predict` och visar priset.
+# 4) Träna modell (skapar backend/models/taxi_model.joblib)
+python scripts/train_model.py
 
-Lycka till! 🚕
+# 5) Starta API (FastAPI/uvicorn)
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+# API docs: http://127.0.0.1:8000/docs
 
+### Modellval
+Testade LinearRegression (MAE 12.967), RidgeCV (12.983) och RandomForest (13.675).
+Valde **LinearRegression** (lägst MAE). Modellen sparas som `backend/models/taxi_model.joblib`.
 
-## Steg-för-steg & commit-förslag
+### Modellval & resultat
+Vi testade tre modeller på `cleaned_taxi.csv`:
 
-1. **chore:** initiera projekt (den här startmallen)
-2. **data:** lägg till `data/taxi_trip_pricing.csv`
-3. **feat(eda):** lägg till `notebooks/EDA.ipynb`
-4. **feat(cleaning):** skript `scripts/make_clean_data.py` som exporterar `data/cleaned_taxi.csv`
-5. **feat(model):** träna modell (`scripts/train_model.py`) → `backend/models/taxi_model.joblib`
-6. **feat(api):** använd tränad modell i `/predict`
-7. **feat(frontend):** koppla UI till API och visa pris
-8. **docs:** uppdatera README med resultat och körinstruktioner
+- LinearRegression — **MAE 12.967**  ← vald modell  
+- RidgeCV — MAE 12.983  
+- RandomForest — MAE 13.675  
+
+Valde **LinearRegression** (lägst MAE). Modellen sparas som `backend/models/taxi_model.joblib` och laddas av API:t.
