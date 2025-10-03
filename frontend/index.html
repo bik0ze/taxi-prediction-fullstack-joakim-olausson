@@ -1,60 +1,68 @@
 <!doctype html>
 <html lang="sv">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Taxi Prediction</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px; }
-    label { display:block; margin-top: 12px; }
-    input { width: 100%; padding: 10px; border:1px solid #ccc; border-radius:8px; }
-    button { margin-top:16px; padding:10px 16px; border:0; border-radius:10px; cursor:pointer; }
-    .primary { background:#2563eb; color:white; }
-    .secondary { background:#efefef; }
-    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    .result { font-size: 1.25rem; margin-top: 16px; }
-    .muted { color:#555; font-size: .9rem; }
-    pre { background:#f8f8f8; padding:12px; border-radius:8px; overflow:auto; }
-    table { width:100%; border-collapse: collapse; margin-top: 8px; font-size: 0.95rem; }
-    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
-    th { background: #fafafa; }
-  </style>
-</head>
-<body>
-  <h1>Taxi Prediction</h1>
-  <p class="muted">Testa att fylla i sträcka, tid och antal passagerare för att få ett uppskattat taxipris.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Taxi Prediction</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="stack">
+        <h1>Taxi Prediction</h1>
+        <p class="muted">Fyll i sträcka, restid och passagerare för att få ett uppskattat taxipris.</p>
+      </header>
 
-  <!-- Prediktionskortet -->
-  <div class="card">
-    <div class="row">
-      <div>
-        <label>Sträcka (km)</label>
-        <input id="distance" type="number" min="0" step="0.1" value="5" />
-      </div>
-      <div>
-        <label>Restid (min)</label>
-        <input id="duration" type="number" min="0" step="1" value="15" />
-      </div>
-    </div>
-    <label>Passagerare</label>
-    <input id="passengers" type="number" min="1" step="1" value="1" />
-    <button class="primary" onclick="predict()">Beräkna pris</button>
-    <div id="out" class="result"></div>
-  </div>
+      <section class="card stack">
+        <h2>Beräkna pris</h2>
+        <form id="form" class="grid">
+          <label>
+            <span>Sträcka (km)</span>
+            <input id="distance" type="number" min="0" step="0.1" value="5" required />
+          </label>
+          <label>
+            <span>Restid (min)</span>
+            <input id="duration" type="number" min="0" step="1" value="15" required />
+          </label>
+          <label class="full">
+            <span>Passagerare</span>
+            <input id="passengers" type="number" min="1" max="8" step="1" value="1" required />
+          </label>
 
-  <!-- Statskortet -->
-  <div class="card">
-    <h2>Dataset-statistik</h2>
-    <p class="muted">Hämtas från API:ets <code>/stats</code> och <code>/data/sample</code>.</p>
-    <button class="secondary" onclick="loadStats()">Visa stats</button>
-    <button onclick="loadSample()">Visa 5 exempelrader</button>
-    <h3>Stats</h3>
-    <pre id="statsOut">—</pre>
-    <h3>Exempelrader</h3>
-    <div id="sampleOut">—</div>
-  </div>
+          <div class="actions">
+            <button id="btn" type="submit">Beräkna pris</button>
+            <span id="modelBadge" class="badge"></span>
+          </div>
+        </form>
 
-  <script src="app.js"></script>
-</body>
+        <div id="result" class="result muted">–</div>
+      </section>
+
+      <section class="card stack">
+        <div class="row">
+          <h2>Dataset-statistik</h2>
+          <div class="gap">
+            <button id="btnStats" type="button">Visa stats</button>
+            <div class="row gap">
+              <input id="nRows" type="number" min="1" max="20" value="5" />
+              <button id="btnSample" type="button">Visa exempelrader</button>
+            </div>
+          </div>
+        </div>
+
+        <pre id="stats" class="pre hidden"></pre>
+
+        <div class="table-wrap hidden" id="sampleWrap">
+          <table id="sampleTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="muted small">API: <code id="apiUrl"></code></footer>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
 </html>

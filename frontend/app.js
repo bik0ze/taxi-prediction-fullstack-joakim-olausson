@@ -1,57 +1,82 @@
-const API_BASE = "http://127.0.0.1:8000";
+const API_URL = "http://127.0.0.1:8000";
+document.getElementById("apiUrl").textContent = API_URL;
 
-async function predict() {
-  const distance = parseFloat(document.getElementById('distance').value);
-  const duration = parseFloat(document.getElementById('duration').value);
-  const passengers = parseInt(document.getElementById('passengers').value, 10);
-  const out = document.getElementById('out');
-  out.textContent = 'Beräknar...';
+const $ = (id) => document.getElementById(id);
+const btn = $("btn");
+const form = $("form");
+
+async function getModelInfo() {
+  try {
+    const r = await fetch(`${API_URL}/model/info`);
+    if (!r.ok) return;
+    const j = await r.json();
+    const b = $("modelBadge");
+    b.textContent = j.model_loaded ? `Modell: ${j.model_name}` : "Ingen ML-modell laddad";
+    b.classList.toggle("ok", !!j.model_loaded);
+  } catch (_) {}
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const distance_km = Number($("distance").value);
+  const duration_min = Number($("duration").value);
+  const passenger_count = Number($("passengers").value);
+
+  if (distance_km < 0 || duration_min < 0 || passenger_count < 1) {
+    $("result").textContent = "Ogiltiga värden.";
+    return;
+  }
+
+  btn.disabled = true; const old = btn.textContent; btn.textContent = "Beräknar…";
+  $("result").textContent = "–";
 
   try {
-    const resp = await fetch(`${API_BASE}/predict`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ distance_km: distance, duration_min: duration, passenger_count: passengers })
+    const r = await fetch(`${API_URL}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ distance_km, duration_min, passenger_count }),
     });
-    const data = await resp.json();
-    if (resp.ok) {
-      out.textContent = `Uppskattat pris: $${data.predicted_fare} ${data.used_model ? '(ML-modell)' : '(baseline)'}`;
-    } else {
-      out.textContent = 'Något gick fel: ' + JSON.stringify(data);
-    }
-  } catch (e) {
-    out.textContent = 'Kunde inte kontakta API: ' + e;
-  }
-}
+    if (!r.ok) throw new Error("Kunde inte beräkna");
 
-async function loadStats() {
-  const box = document.getElementById('statsOut');
-  box.textContent = 'Hämtar...';
+    const j = await r.json();
+    const used = j.used_model ? "ML-modell" : "Baslinje";
+    const name = j.model_name ? ` (${j.model_name})` : "";
+    $("result").innerHTML = `Uppskattat pris: <strong>$${Number(j.predicted_fare).toFixed(2)}</strong> <span class="badge ok">${used}${name}</span>`;
+  } catch (err) {
+    $("result").textContent = "Något gick fel. Kontrollera att API:et körs.";
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+    getModelInfo(); // uppdatera badgen om modellen laddades/ändrades
+  }
+});
+
+// Stats
+$("btnStats").addEventListener("click", async () => {
   try {
-    const resp = await fetch(`${API_BASE}/stats`);
-    const data = await resp.json();
-    box.textContent = JSON.stringify(data, null, 2);
-  } catch (e) {
-    box.textContent = 'Kunde inte hämta stats: ' + e;
-  }
-}
+    const r = await fetch(`${API_URL}/stats`);
+    const j = await r.json();
+    const el = $("stats");
+    el.textContent = JSON.stringify(j, null, 2);
+    el.classList.remove("hidden");
+  } catch (_) {}
+});
 
-async function loadSample() {
-  const box = document.getElementById('sampleOut');
-  box.textContent = 'Hämtar...';
+// Sample
+$("btnSample").addEventListener("click", async () => {
   try {
-    const resp = await fetch(`${API_BASE}/data/sample?n=5`);
-    const data = await resp.json();
-    box.innerHTML = renderTable(data.rows || []);
-  } catch (e) {
-    box.textContent = 'Kunde inte hämta exempelrader: ' + e;
-  }
-}
+    const n = Math.max(1, Math.min(50, Number($("nRows").value || 5)));
+    const r = await fetch(`${API_URL}/data/sample?n=${n}`);
+    const j = await r.json();
+    const rows = j.rows || [];
+    const wrap = $("sampleWrap");
+    const thead = $("sampleTable").querySelector("thead");
+    const tbody = $("sampleTable").querySelector("tbody");
+    if (!rows.length) { wrap.classList.add("hidden"); return; }
+    const cols = Object.keys(rows[0]);
+    thead.innerHTML = `<tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr>`;
+    tbody.innerHTML = rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]}</td>`).join("")}</tr>`).join("");
+    wrap.classList.remove("hidden");
+  } catch (_) {}
+});
 
-function renderTable(rows) {
-  if (!rows || rows.length === 0) return '—';
-  const cols = Object.keys(rows[0]);
-  const head = `<tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>`;
-  const body = rows.map(r => `<tr>${cols.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('');
-  return `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
-}
+getModelInfo();
