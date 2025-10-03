@@ -1,68 +1,111 @@
 <!doctype html>
 <html lang="sv">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Taxi Prediction</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <main class="container">
-      <header class="stack">
-        <h1>Taxi Prediction</h1>
-        <p class="muted">Fyll i sträcka, restid och passagerare för att få ett uppskattat taxipris.</p>
-      </header>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taxi Prediction</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header -->
+  <header class="topbar">
+    <div class="brand">
+      <!-- Taxi-ikon (inline SVG) -->
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11h1a2 2 0 012 2v5a1 1 0 01-1 1h-1a1 1 0 01-1-1v-1H5v1a1 1 0 01-1 1H3a1 1 0 01-1-1v-5a2 2 0 012-2h1zm2.2-4a1 1 0 00-.95.68L5.9 11h12.2l-1.35-3.32A1 1 0 0015.8 7H7.2zM7 15.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm10 0a1.5 1.5 0 10-.001-3.001A1.5 1.5 0 0017 15.5z"/></svg>
+      <span>Taxi Prediction</span>
+      <span id="apiStatus" class="status status--off" title="API-status"></span>
+    </div>
 
-      <section class="card stack">
+    <div class="badges">
+      <span id="modelBadge" class="badge">ML-modell</span>
+      <button id="themeBtn" class="btn btn--ghost" title="Byt tema">🌓</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Prisberäkning -->
+    <section class="card">
+      <div class="card__header">
         <h2>Beräkna pris</h2>
-        <form id="form" class="grid">
-          <label>
-            <span>Sträcka (km)</span>
-            <input id="distance" type="number" min="0" step="0.1" value="5" required />
-          </label>
-          <label>
-            <span>Restid (min)</span>
-            <input id="duration" type="number" min="0" step="1" value="15" required />
-          </label>
-          <label class="full">
-            <span>Passagerare</span>
-            <input id="passengers" type="number" min="1" max="8" step="1" value="1" required />
-          </label>
+        <p class="muted">Fyll i sträcka, restid och antal passagerare.</p>
+      </div>
 
-          <div class="actions">
-            <button id="btn" type="submit">Beräkna pris</button>
-            <span id="modelBadge" class="badge"></span>
-          </div>
-        </form>
+      <form id="predictForm" class="grid grid--3">
+        <label class="field">
+          <span class="field__label">Sträcka (km)</span>
+          <input id="distance" class="field__input" type="number" inputmode="decimal" min="0" step="0.1" placeholder="t.ex. 5" required />
+        </label>
 
-        <div id="result" class="result muted">–</div>
-      </section>
+        <label class="field">
+          <span class="field__label">Restid (min)</span>
+          <input id="duration" class="field__input" type="number" inputmode="numeric" min="0" step="1" placeholder="t.ex. 15" required />
+        </label>
 
-      <section class="card stack">
+        <label class="field">
+          <span class="field__label">Passagerare</span>
+          <input id="passengers" class="field__input" type="number" inputmode="numeric" min="1" max="8" step="1" placeholder="t.ex. 1" required />
+        </label>
+
+        <div class="grid__actions">
+          <button id="predictBtn" class="btn btn--accent" type="submit">Beräkna pris</button>
+          <button id="demoBtn" class="btn btn--ghost" type="button">Demo-värden</button>
+        </div>
+      </form>
+
+      <div class="result">
+        <div class="pill">
+          <span class="pill__title">Uppskattat pris</span>
+          <span id="price" class="pill__value">–</span>
+        </div>
+        <span id="usedModel" class="tag">ML-modell</span>
+      </div>
+    </section>
+
+    <!-- Dataset -->
+    <section class="card">
+      <div class="card__header card__header--row">
+        <h2>Dataset-statistik</h2>
         <div class="row">
-          <h2>Dataset-statistik</h2>
-          <div class="gap">
-            <button id="btnStats" type="button">Visa stats</button>
-            <div class="row gap">
-              <input id="nRows" type="number" min="1" max="20" value="5" />
-              <button id="btnSample" type="button">Visa exempelrader</button>
-            </div>
+          <button id="btnStats" class="btn btn--small">Visa stats</button>
+          <div class="num-input">
+            <input id="sampleN" type="number" min="1" max="50" step="1" value="5" />
+            <span>rader</span>
+          </div>
+          <button id="btnSample" class="btn btn--small">Visa exempelrader</button>
+        </div>
+      </div>
+
+      <div class="grid grid--2">
+        <div>
+          <h3 class="subtle">Stats</h3>
+          <pre id="statsBox" class="codeblock">–</pre>
+        </div>
+        <div>
+          <h3 class="subtle">Exempelrader</h3>
+          <div class="tablewrap">
+            <table id="sampleTable" class="table">
+              <thead>
+                <tr>
+                  <th>distance_km</th>
+                  <th>duration_min</th>
+                  <th>passenger_count</th>
+                  <th>fare</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
           </div>
         </div>
+      </div>
+      <p class="muted small">API: <span id="apiUrlText"></span></p>
+    </section>
+  </main>
 
-        <pre id="stats" class="pre hidden"></pre>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-        <div class="table-wrap hidden" id="sampleWrap">
-          <table id="sampleTable">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
-
-      <footer class="muted small">API: <code id="apiUrl"></code></footer>
-    </main>
-
-    <script src="app.js"></script>
-  </body>
+  <script src="app.js" defer></script>
+</body>
 </html>

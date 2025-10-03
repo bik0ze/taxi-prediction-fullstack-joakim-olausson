@@ -1,82 +1,140 @@
-const API_URL = "http://127.0.0.1:8000";
-document.getElementById("apiUrl").textContent = API_URL;
+// ====== Konfiguration ======
+const API_URL = "http://127.0.0.1:8000"; // ändra vid behov
+const CURRENCY = "kr";                    // visa belopp i kr (byt om du vill)
 
-const $ = (id) => document.getElementById(id);
-const btn = $("btn");
-const form = $("form");
+// ====== Hjälpare ======
+const $ = (sel, p=document) => p.querySelector(sel);
+const $$ = (sel, p=document) => [...p.querySelectorAll(sel)];
+const fmtMoney = v => isFinite(v) ? `${Number(v).toFixed(2)} ${CURRENCY}` : "–";
+const setText = (el, t) => { el.textContent = t; };
+const toast = msg => {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("toast--show");
+  setTimeout(()=>t.classList.remove("toast--show"), 1800);
+};
 
-async function getModelInfo() {
-  try {
-    const r = await fetch(`${API_URL}/model/info`);
-    if (!r.ok) return;
-    const j = await r.json();
-    const b = $("modelBadge");
-    b.textContent = j.model_loaded ? `Modell: ${j.model_name}` : "Ingen ML-modell laddad";
-    b.classList.toggle("ok", !!j.model_loaded);
-  } catch (_) {}
+// Visa aktiv API-URL i UI
+$("#apiUrlText").textContent = API_URL;
+
+// Tema (mörk/ljus) – valfritt
+$("#themeBtn").addEventListener("click", () => {
+  document.documentElement.toggleAttribute("data-light"); // enkel toggle
+});
+
+// ====== API-anrop ======
+async function apiGet(path){
+  const res = await fetch(`${API_URL}${path}`);
+  if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+async function apiPost(path, body){
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
 }
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const distance_km = Number($("distance").value);
-  const duration_min = Number($("duration").value);
-  const passenger_count = Number($("passengers").value);
+// ====== Init: hämta status & modell-info ======
+async function init(){
+  try{
+    const health = await apiGet("/health");
+    $("#apiStatus").classList.toggle("status--on", health?.status === "ok");
+  }catch{ /* lämna röd */ }
 
-  if (distance_km < 0 || duration_min < 0 || passenger_count < 1) {
-    $("result").textContent = "Ogiltiga värden.";
+  try{
+    const info = await apiGet("/model/info");
+    const name = info?.model_name || "Okänd modell";
+    $("#modelBadge").textContent = `ML-modell: ${name}`;
+  }catch{
+    $("#modelBadge").textContent = "ML-modell: okänd";
+  }
+
+  // Återställ senaste värden
+  const saved = JSON.parse(localStorage.getItem("predictForm") || "{}");
+  if(saved.distance) $("#distance").value = saved.distance;
+  if(saved.duration) $("#duration").value = saved.duration;
+  if(saved.passengers) $("#passengers").value = saved.passengers;
+}
+init();
+
+// ====== Predict-form ======
+$("#demoBtn").addEventListener("click", () => {
+  $("#distance").value = 5;
+  $("#duration").value = 15;
+  $("#passengers").value = 1;
+});
+
+$("#predictForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const distance = parseFloat($("#distance").value);
+  const duration = parseFloat($("#duration").value);
+  const passengers = parseInt($("#passengers").value, 10);
+
+  if([distance, duration, passengers].some(v => !isFinite(v) || v < 0) || passengers < 1){
+    toast("Kontrollera att alla fält är ifyllda korrekt.");
     return;
   }
 
-  btn.disabled = true; const old = btn.textContent; btn.textContent = "Beräknar…";
-  $("result").textContent = "–";
+  // spara inputs
+  localStorage.setItem("predictForm", JSON.stringify({distance, duration, passengers}));
 
-  try {
-    const r = await fetch(`${API_URL}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ distance_km, duration_min, passenger_count }),
+  const btn = $("#predictBtn");
+  btn.disabled = true; btn.textContent = "Beräknar…";
+  try{
+    const data = await apiPost("/predict", {
+      distance_km: distance,
+      duration_min: duration,
+      passenger_count: passengers
     });
-    if (!r.ok) throw new Error("Kunde inte beräkna");
 
-    const j = await r.json();
-    const used = j.used_model ? "ML-modell" : "Baslinje";
-    const name = j.model_name ? ` (${j.model_name})` : "";
-    $("result").innerHTML = `Uppskattat pris: <strong>$${Number(j.predicted_fare).toFixed(2)}</strong> <span class="badge ok">${used}${name}</span>`;
-  } catch (err) {
-    $("result").textContent = "Något gick fel. Kontrollera att API:et körs.";
-  } finally {
-    btn.disabled = false; btn.textContent = old;
-    getModelInfo(); // uppdatera badgen om modellen laddades/ändrades
+    // Resultat
+    const usedModel = data?.used_model === true;
+    const modelName = data?.model_name || (usedModel ? "ML-modell" : "Baslinje");
+    setText($("#price"), fmtMoney(data?.predicted_fare));
+    setText($("#usedModel"), usedModel ? `ML-modell (${modelName})` : "Baslinje");
+    toast("Pris uppdaterat!");
+  }catch(err){
+    console.error(err);
+    toast("Kunde inte beräkna pris. Är API:t igång?");
+  }finally{
+    btn.disabled = false; btn.textContent = "Beräkna pris";
   }
 });
 
-// Stats
-$("btnStats").addEventListener("click", async () => {
-  try {
-    const r = await fetch(`${API_URL}/stats`);
-    const j = await r.json();
-    const el = $("stats");
-    el.textContent = JSON.stringify(j, null, 2);
-    el.classList.remove("hidden");
-  } catch (_) {}
+// ====== Stats ======
+$("#btnStats").addEventListener("click", async () => {
+  const box = $("#statsBox");
+  box.textContent = "Hämtar…";
+  try{
+    const s = await apiGet("/stats");
+    box.textContent = JSON.stringify(s, null, 2);
+    toast("Stats hämtade");
+  }catch(err){
+    box.textContent = "Kunde inte hämta stats.";
+  }
 });
 
-// Sample
-$("btnSample").addEventListener("click", async () => {
-  try {
-    const n = Math.max(1, Math.min(50, Number($("nRows").value || 5)));
-    const r = await fetch(`${API_URL}/data/sample?n=${n}`);
-    const j = await r.json();
-    const rows = j.rows || [];
-    const wrap = $("sampleWrap");
-    const thead = $("sampleTable").querySelector("thead");
-    const tbody = $("sampleTable").querySelector("tbody");
-    if (!rows.length) { wrap.classList.add("hidden"); return; }
-    const cols = Object.keys(rows[0]);
-    thead.innerHTML = `<tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr>`;
-    tbody.innerHTML = rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]}</td>`).join("")}</tr>`).join("");
-    wrap.classList.remove("hidden");
-  } catch (_) {}
+// ====== Sample ======
+$("#btnSample").addEventListener("click", async () => {
+  const n = parseInt($("#sampleN").value || "5", 10);
+  const tbody = $("#sampleTable tbody");
+  tbody.innerHTML = `<tr><td colspan="4" class="muted">Hämtar…</td></tr>`;
+  try{
+    const s = await apiGet(`/data/sample?n=${Math.max(1, Math.min(50, n))}`);
+    const rows = s?.rows || [];
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${Number(r.distance_km).toFixed(2)}</td>
+        <td>${Number(r.duration_min).toFixed(2)}</td>
+        <td>${r.passenger_count}</td>
+        <td>${Number(r.fare).toFixed(4)}</td>
+      </tr>
+    `).join("") || `<tr><td colspan="4" class="muted">Inga rader.</td></tr>`;
+    toast("Exempelrader uppdaterade");
+  }catch{
+    tbody.innerHTML = `<tr><td colspan="4">Kunde inte hämta data.</td></tr>`;
+  }
 });
-
-getModelInfo();
